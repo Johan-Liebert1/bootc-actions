@@ -58,8 +58,32 @@ runs:
         # capped at 30s per attempt. 34 retries covers ~15 min of cumulative delay; use 35.
         echo 'Acquire::Retries "35";' | sudo tee /etc/apt/apt.conf.d/80-retries
         /bin/time -f '%E %C' sudo apt update
+
+        # Build podman from source for new version
+        /bin/time sudo apt install -y \
+            git \
+            make \
+            golang \
+            curl \
+            unzip \
+            pkg-config \
+            libgpgme-dev \
+            libseccomp-dev \
+            libsystemd-dev
+
+        curl --output podman.zip https://codeload.github.com/containers/podman/zip/refs/tags/v5.8.2
+        unzip podman.zip
+        cd podman-5.8.2
+        make && sudo make install
+
+        # Allow podman reexec
+        sudo sed -i 's;/usr/bin/podman;/usr/local/bin/podman;' /etc/apparmor.d/podman
+        sudo cat /etc/apparmor.d/podman
+
+        sudo apparmor_parser -r /etc/apparmor.d/podman
+
         # skopeo is currently older in plucky for some reason hence --allow-downgrades
-        /bin/time -f '%E %C' sudo apt install -y --allow-downgrades crun/plucky buildah/plucky podman/plucky skopeo/plucky just
+        /bin/time -f '%E %C' sudo apt install -y --allow-downgrades crun/plucky buildah/plucky skopeo/plucky just
     # This is the default on e.g. Fedora derivatives, but not Debian.
     # Only needed when libvirt/virtualization is requested.
     - name: Enable unprivileged /dev/kvm access
